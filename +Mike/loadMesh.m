@@ -42,18 +42,18 @@ options.boundary=true;
 options.convert=false;
 options=checkArguments(options,varargin);
 
-if isdir(meshFileName)
+if isfolder(meshFileName)
     meshFileDir=meshFileName;
     meshFileName=fileFinder(meshFileDir,'.mesh');
     if isempty(meshFileName)
         error('No mesh files found in ''%s''',meshFileDir)
-    elseif iscellstr(meshFileName)
+    elseif iscell(meshFileName)
         disp(meshFileName);
         error('Multiple mesh files found!')
     end
 end
 
-[triMesh,nodes,proj,zUnitKey]=mzReadMesh(meshFileName);
+[meshIndices,nodes,proj,zUnitKey]=mzReadMesh(meshFileName);
 xMesh=nodes(:,1);
 yMesh=nodes(:,2);
 zMesh=nodes(:,3);
@@ -67,10 +67,10 @@ if options.convert
     nodes(:,2)=yMesh;
 end
 
-mikeMesh=struct('triMesh',triMesh,'xMesh',xMesh,'yMesh',yMesh,'zMesh',zMesh,'codes',codes,'proj',proj,'zunit',zUnitKey,'nodes',nodes);
+mikeMesh=struct('meshIndices',meshIndices,'xMesh',xMesh,'yMesh',yMesh,'zMesh',zMesh,'codes',codes,'proj',proj,'zunit',zUnitKey,'nodes',nodes);
 
 if options.boundary
-    [boundaryIndices,xMeshBoundary,yMeshBoundary]=meshBoundary(triMesh,xMesh,yMesh);
+    [boundaryIndices,xMeshBoundary,yMeshBoundary]=meshBoundary(meshIndices,xMesh,yMesh);
     mikeMesh.boundaryIndices=boundaryIndices;
     mikeMesh.xMeshBoundary=xMeshBoundary;
     mikeMesh.yMeshBoundary=yMeshBoundary;
@@ -85,6 +85,5 @@ if options.plot
         % oh well
     end
 end
-
 
 end
