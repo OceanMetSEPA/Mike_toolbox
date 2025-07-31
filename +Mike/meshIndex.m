@@ -1,58 +1,95 @@
-function [ triIndex,nodeIndex ] = meshIndex(xp,yp,tri,xMesh,yMesh)
-% Find mesh triangle(s) containing point(s), and nearest grid node
+function [gridIndex] = meshIndex(xp, yp,varargin)
+% Find the containing quadrilateral or triangle for each point (xp, yp)
 %
-% INPUTS:
-% xp,yp : eastings/northings of points to locate;
-%   Either: tri,x,y : mesh triangles and node points OR
-%           mikeMesh : struct containing above info (as returned by MIKE.loadMesh function) OR
-%           dfsuStruct : matlab.io.MatFile (as returned by dfsu2Struct)
-% OUTPUTS:
-% triIndex: index(ices) of mesh triangles containing points
-% nodeIndex: nearest node
+% INPUT:
+% - xp, yp: Query points' coordinates (Nx1 arrays)
+% And either:
+%    - struct containing xMesh,yMesh,meshIndices
+%    - faces,vertices
+%    - faces,xMesh,yMesh
 %
-% NOTE:
-% any points not within mesh return NaN
+% where:    
+%       faces: (Mx3 or Mx4) list of triangles or quadrilaterals
+%       xMesh, yMesh: Mesh node coordinates (Px1 arrays)
 %
-% UPDATE (20180801)
-% Rewritten to take advantage of 'tsearchn' function which is much faster
-% than previous code, but returned NaNs near boundary in 2013 matlab
-% version.
+% OUTPUT:
+% - gridIndex: Index of the quadrilateral or triangle containing each (xp, yp) point
 %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% $Workfile:   meshIndex.m  $
-% $Revision:   1.2  $
-% $Author:   Ted.Schlicke  $
-% $Date:   Aug 01 2018 15:29:10  $
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Supports **both triangles and quadrilaterals**.
+% Uses **tsearchn** for fast point location.
 
 if nargin<3
-    help MIKE.meshIndex
+    help Mike.meshIndex
     return
 end
-origShape=size(xp);
-xp=xp(:);
-yp=yp(:);
 
-if nargin==3 % xmesh,ymesh,tri bundled into struct?
-    fn=fieldnames(tri);
-    try        
-        xfield=fn{contains(fn,'xmesh','ig',1)};
-        xMesh=tri.(xfield);
-        yfield=fn{contains(fn,'ymesh','ig',1)};
-        yMesh=tri.(yfield);
-        triField=fn{contains(fn,'triMesh','ig',1)|contains(fn,'MeshIndices','ig',1)|contains(fn,'tri')};
-        tri=tri.(triField);
-    catch
-        disp(fn)
-        error('Can''t find mesh info from argument 3')
-    end
+switch length(varargin)
+    case 1 % Assume meshStruct input (as returned by Mike.loadMesh for example)
+        s=varargin{1};
+        try
+            fn=fieldnames(s);
+            xfield=fn{contains(fn,'xmesh','ig',1)};
+            xMesh=s.(xfield);
+            yfield=fn{contains(fn,'ymesh','ig',1)};
+            yMesh=s.(yfield);
+            triField=fn{contains(fn,'triMesh','ig',1)|contains(fn,'MeshIndices','ig',1)|contains(fn,'tri')};
+            faces=s.(triField);
+            vertices=[xMesh,yMesh];
+        catch
+            disp(fn)
+            error('Can''t find mesh info from argument 3')
+        end
+    case 2 % faces, vertices
+        faces=varargin{1};
+        vertices=varargin{2};
+        if size(vertices,2)==3
+            vertices(:,3)=[];
+        end
+    case 3 % faces, xMesh, yMesh (original function call)
+        faces=varargin{1};
+        xMesh=varargin{2};
+        yMesh=varargin{3};
+        vertices=[xMesh,yMesh];
+    otherwise
+        error('Incorrect number of arguments')
 end
 
-xy=[xMesh,yMesh];
-triIndex=tsearchn(xy,tri,[xp,yp]);
-triIndex=reshape(triIndex,origShape);
-if nargout>1
-    nodeIndex=kNearestNeighbors([xMesh,yMesh],[xp,yp],1);
+origShape = size(xp);
+xp = xp(:);
+yp = yp(:);
+
+% Replace nans with Mike's null val
+nullVal=Mike.nullVal;
+xp(isnan(xp))=nullVal;
+yp(isnan(yp))=nullVal;
+
+quadMesh = (size(faces, 2) == 4);  % Check if input is quadrilateral mesh
+
+if quadMesh
+    NQuad = size(faces, 1);
+    triFaces=[faces(:,1:3);faces(:,[1,3,4])];
+else
+    triFaces = faces;  % Already triangles
 end
+
+%  **Find Containing Triangle**
+try
+gridIndex = tsearchn(vertices, triFaces, [xp, yp]);  % Returns NaN if outside
+catch err
+%    fprintf('Point %f, %f\n',xp,yp)
+    disp(size(vertices))
+    disp(size(triFaces))
+    fprintf('Orig shape = %s\n',tdisp(origShape))
+    disp(err)
+    underline
+    gridIndex=nan;
+end
+%  **Convert Triangle Index Back to Quadrilateral Index (if needed)**
+if quadMesh
+    gridIndex=mod(gridIndex-1,NQuad)+1;
+end
+
+%  **Reshape Output to Match Input**
+gridIndex = reshape(gridIndex, origShape);
 
 end
