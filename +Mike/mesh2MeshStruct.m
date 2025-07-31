@@ -45,7 +45,7 @@ switch class(f)
     otherwise
         error('invalid input')
 end
-matfileName=fullfile(p,'meshInfo.mat');
+matfileName=fullfile(p,'meshStruct.mat');
 
 % Mesh coordinates:
 xMesh=volumeStruct.xMesh;
