@@ -114,13 +114,14 @@ function [dfsuData]=readDfsuFile(dfsuFileName,varargin)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 if nargin==0
-    help MIKE.readDfsuFile
+    help Mike.readDfsuFile
     return
 end
 
 %% Process inputs
 options=struct;
-options.dt=[];
+options.dt=[]; % spacing in indices
+options.dtmin=[]; % spacing in minutes
 options.ts=0;
 options.t0=0;
 options.t1=Inf;
@@ -130,7 +131,7 @@ options.index=[];
 options.layer=[];
 options.data=true;
 options.squeeze=true;
-options.verbose=false;
+options.verbose=0;
 options.reshapeFields=true;
 
 % Read optional inputs:
@@ -261,7 +262,9 @@ if options.verbose
     fprintf('Loading parameters:\n')
     disp(dfsuParameterNames2Extract)
 end
-itemFieldNames=MIKE.getFieldName(dfsuParameterNames2Extract);
+itemFieldNames=dfsuParameterNames2Extract;
+itemFieldNames=strrep(itemFieldNames,'-','_');
+itemFieldNames=camelCase(itemFieldNames);
 if ischar(itemFieldNames)
     itemFieldNames=cellstr(itemFieldNames);
 end
@@ -276,14 +279,15 @@ if sum(layers2Keep)==0
     error('No valid layers specified; returning')
 end
 
-%% Model items to extract:
+%% Model times to extract:
 if ~isnumeric(options.t0)
     options.t0=datenumVariableFormat(options.t0);
 end
 if ~isnumeric(options.t1)
     options.t1=datenumVariableFormat(options.t1);
 end
-% Time stuff - find start time and time sep
+
+% Time stuff - find start time and time sep from dfsu file:
 Nt = double(dfsu.NumberOfTimeSteps);
 if options.verbose
     fprintf('File has %d timesteps\n',Nt)
@@ -295,6 +299,7 @@ modelDatenums=(t0+double(0:(Nt-1))*timeSep); % time steps
 if options.verbose
     fprintf('Model Run Dates:\n%s to\n%s\n',datestr(min(modelDatenums)),datestr(max(modelDatenums)))
 end
+
 % Might want to filter output times
 timeStep=unique(round(diff(modelDatenums)*24*60*60)/60); % Time step in minutes
 if length(timeStep)>1
@@ -303,21 +308,37 @@ end
 if options.verbose
     fprintf('Model output file timestep = %.1f minutes\n',timeStep)
 end
+
 % Define indices for this time sequence
 if options.ts==0 % Default - extract everything (0 used for this purpose in D3D functions)
+    % Sort spacing:
+    % Has user specified index spacing? 
     if isempty(options.dt)
         dk=1; % default - extract every timestep
     else
-        dk=round(options.dt/timeStep);
+        dk=options.dt;
+    end
+    if ~isempty(options.dtmin)
+        dk=round(options.dtmin/timeStep);
         if dk<1
             error('Can''t extract that time resolution! Minimum timestep = %.1f',timeStep)
         end
     end
+
     if options.verbose
         fprintf('Keeping every %d timestep (total = %d)...\n',dk,Nt)
         fprintf('Number of modelTimes = %d\n',length(modelDatenums))
     end
-    timeIndices2Extract=find(modelDatenums>=options.t0 & modelDatenums<options.t1 & mod(0:(Nt-1),dk)==0);
+    % Are t0,t1 datenums or indices?
+    % Originally wrote this assuming we would specify dates, but indices
+    % might be easier...
+    if options.t0<modelDatenums(1) % assume indices
+        t0=max([options.t0,1]);
+        t1=min([options.t1,length(modelDatenums)]);
+        timeIndices2Extract=t0:dk:t1;
+    else
+        timeIndices2Extract=find(modelDatenums>=options.t0 & modelDatenums<options.t1 & mod(0:(Nt-1),dk)==0);
+    end
 else
     timeIndices2Extract=options.ts;
     if timeIndices2Extract==-1
@@ -374,7 +395,8 @@ y=y(:,1);
 z=z(:,layers2Keep);
 
 %% Prepare output struct
-dfsuData=struct('Name',dfsuFileName,'DateTime',modelDatenums(:),'X',x(:),'Y',y(:),'Z',z,'ElementTable',elementTable,'MeshIndices',tri2d,'XMesh',xn2d,'YMesh',yn2d,'ZMesh',zn2d,'ItemInfo',parameterInfo);
+%dfsuData=struct('Name',dfsuFileName,'DateTime',modelDatenums(:),'X',x(:),'Y',y(:),'Z',z,'ElementTable',elementTable,'MeshIndices',tri2d,'XMesh',xn2d,'YMesh',yn2d,'ZMesh',zn2d,'ItemInfo',parameterInfo);
+dfsuData=struct('name',dfsuFileName,'dateTime',modelDatenums(:),'x',x(:),'y',y(:),'z',z,'elementTable',elementTable,'meshIndices',tri2d,'xMesh',xn2d,'yMesh',yn2d,'zMesh',zn2d,'itemInfo',parameterInfo);
 
 %% Load data
 if options.data
@@ -391,7 +413,7 @@ if options.data
         end
         parameterData=arrayfun(@(i)double(dfsu.ReadItemTimeStep(pin,i-1).Data)',timeIndices2Extract,'Unif',0);
         parameterData=horzcat(parameterData{:}); % 2d array, Nt columns, one row per grid point (centre of each mesh triangle)
-        cprintf('green','N Output values = %d\n',NOutputElements)
+        %        cprintf('green','N Output values = %d\n',NOutputElements)
         if options.reshapeFields
             if size(parameterData,1)==NOutputElements
                 %            fprintf('Reshaping and permuting... %s\n',p)
@@ -410,13 +432,14 @@ if options.data
             parameterData=parameterData(indices2Extract,:,:);
         end
         fn=itemFieldNames{parameterIndex};
+        fn=genvarname(fn);
         dfsuData.(fn)=parameterData;
     end
     % Squeeze?
     if options.squeeze
         Nf=length(itemFieldNames);
         for fieldIndex=1:Nf
-            fni=itemFieldNames{fieldIndex};
+            fni=genvarname(itemFieldNames{fieldIndex});
             si=dfsuData.(fni);
             si=squeeze(si);
             dfsuData.(fni)=si;
