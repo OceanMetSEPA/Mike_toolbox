@@ -1,10 +1,10 @@
 function op=sourceInfo(varargin)
 % Extract key info from mfmStruct
 % (which is generated from m21fm file by Mike.mfm2struct(fileName);
-% 
+%
 % INPUT:
 % mfmStruct - struct returned my Mike.mfm2struct, or .m21fm (etc) input file
-% 
+%
 % OUTPUT:
 % table with fields:
 %   *) Name - source name
@@ -81,9 +81,11 @@ for i=1:NSources
     istruct.perParticle=~iclass.type_particle;
     istruct.asFlux=logical(iclass.type_value);
     if iclass.format_particle
-        istruct.dfs0File=strrep(iclass.file_name_particle,'|','');
+        istruct.dfs0NParticles=strrep(iclass.file_name_particle,'|','');
+        istruct.dfs0Mass=strrep(iclass.file_name,'|','');
     else
-        istruct.dfs0File='';
+        istruct.dfs0NParticles='';
+        istruct.dfs0Mass='';
     end
     % Decay
     if mfmStruct.PARTICLE_TRACKING_MODULE.DECAY.(classStr).type
