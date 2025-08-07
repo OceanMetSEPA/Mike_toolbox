@@ -6,11 +6,10 @@ function op=modelMassFromInputFiles(mfmStruct,plotit)
 % OUTPUT: struct with fields:
 % Name - model run name
 % dateTime - datenums of timesteps
-% mass - timeseries of cumulative mass
+% mass - timeseries of cumulative mass (kg)
 % massPerTimeStep - mass added each timestep
 % timeFilter - used in conv function to calculate mass
 % 
-
 
 if length(mfmStruct)>1
     op=arrayfun(@(i)Mike.modelMassFromInputFiles(mfmStruct(i)),1:length(mfmStruct),'unif',0)';
@@ -66,7 +65,7 @@ for sourceIndex=1:NSources
     perParticle=isource.perParticle;
     NParticles=isource.number_of_particles_per_timestep;
     particleMass=isource.particleMass;
-
+    unit=char(isource.unit);
     dfs0NParticles=char(isource.dfs0NParticles);
     if ~isempty(dfs0NParticles)
         dfs0NParticles=char(GetFullPath(fullfile(p,dfs0NParticles)));
@@ -126,7 +125,7 @@ for sourceIndex=1:NSources
     mexp=massPerSecond/k*(1-exp(-k*tsec));
 
     % Store mass vs time for this source
-    op{sourceIndex}=struct('Name',char(isource.Name),'dateTime',t,'mass',mass,'massPerTimeStep',massPerTimeStep,'timeFilter',timeFilter);
+    op{sourceIndex}=struct('Name',char(isource.Name),'dateTime',t,'mass',mass,'massPerTimeStep',massPerTimeStep,'timeFilter',timeFilter,'unit',unit);
     if plotit
         h(sourceIndex)=plot(t,mass,'color',cm(sourceIndex,:),'displayname',char(isource.Name));
         plot(t,mexp,'--b','linewidth',2)
