@@ -11,10 +11,12 @@ function op=sourceInfo(varargin)
 %   *) coordinates - location of source (x,y,z)
 %   *) ClassIndex - number of corresponding class
 %   *) number_of_particles_per_timestep
-%   *) particleMass (kg)
+%   *) particleMass 
+%   *) unit - of mass ('g' or 'kg' for now)
 %   *) perParticle - is mass divided between particles?
 %   *) asFlux - is mass released per second? (otherwise per timestep)
-%   *) dfs0File - file containing time-varying release
+%   *) dfs0NParticles - file containing time-varying release
+%   *) dfs0Mass - file containing time-varying mass
 %   *) decay (per second) - rate at which particles decay
 %   *) timeStep (s) - model timestep (used for calculating mass elsewhere)
 %
@@ -33,7 +35,6 @@ if N>1
     op=vertcat(op{:});
     return
 end
-%
 
 NSources=mfmStruct.PARTICLE_TRACKING_MODULE.SOURCES.number_of_sources;
 if ischar(NSources) % mfm2struct didn't convert to numeric
@@ -70,7 +71,6 @@ for i=1:NSources
     % If we're here, we've got one class
     classStr=sprintf('CLASS_%d',k);
     iclass=s.SOURCES.(fni).(classStr);
-    %assignin('base','source',source)
     % Prepare struct with key info for this source
     istruct=struct;
     istruct.Name=sourceName;
@@ -78,6 +78,7 @@ for i=1:NSources
     istruct.ClassIndex=k;
     istruct.number_of_particles_per_timestep=iclass.number_of_particles_per_timestep;
     istruct.particleMass=iclass.constant_value;
+    istruct.unit=Mike.eumCode2Unit(mfmStruct.PARTICLE_TRACKING_MODULE.CLASSES.(classStr).EUM_unit);
     istruct.perParticle=~iclass.type_particle;
     istruct.asFlux=logical(iclass.type_value);
     if iclass.format_particle
