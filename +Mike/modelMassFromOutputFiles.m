@@ -28,11 +28,18 @@ options.scaleFactor=1e9;
 options.massField='sussed';
 options=checkArguments(options,varargin);
 
+fprintf('Finding mass within dfsu file...\n')
+
 dfsuParametersToProcess=stringFinder(fieldnames(dfsu),options.massField);
 if isempty(dfsuParametersToProcess)
+    fprintf('Combining suspended/sedimented concentrations...\n')
     dfsu=Mike.sussed2Total(dfsu,meshStruct);
 end
+dfsuParametersToProcess=stringFinder(fieldnames(dfsu),options.massField);
 NParameters2Process=length(dfsuParametersToProcess);
+
+fprintf('Calculating mass of these parameters:\n')
+disp(dfsuParametersToProcess)
 
 op=cell(NParameters2Process,1);
 
