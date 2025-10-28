@@ -13,9 +13,9 @@ function [op, cells2Keep] = cropMesh(meshStruct,cells2Keep)
 %
 %
 if islogical(cells2Keep)
-    if isequal(size(cells2Keep,1),size(meshStruct.meshIndices,1))
+    if isequal(length(cells2Keep),size(meshStruct.meshIndices,1))
         % default - we've specified logical values for each cell
-    elseif isequal(size(cells2Keep,1),size(meshStruct.xMesh,1))
+    elseif isequal(length(cells2Keep),size(meshStruct.xMesh,1))
         k=find(cells2Keep);
         cells2Keep=any(ismember(meshStruct.meshIndices,k),2);
         size(cells2Keep)
