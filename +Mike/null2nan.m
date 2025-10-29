@@ -1,4 +1,4 @@
-function s = null2nan(s)
+function op = null2nan(ip)
 %NULL2NAN Recursively replace numeric occurrences of nullVal with NaN in a struct
 %
 % INPUT:
@@ -14,5 +14,11 @@ function s = null2nan(s)
 
 oldVal=Mike.nullVal;
 newVal=nan;
-
-s=replaceValInStruct(s,oldVal,newVal);
+if isstruct(ip)
+    ip=replaceValInStruct(ip,oldVal,newVal);
+elseif isnumeric(ip)
+    ip(ip==oldVal)=newVal;
+else
+    error('Input should be struct or numeric')
+end
+op=ip;
