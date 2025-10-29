@@ -23,6 +23,13 @@ if nargin==0
     return
 end
 
-nullVal=Mike.nullVal;
+newVal=Mike.nullVal;
 
-op=replaceValInStruct(ip,nan,nullVal);
+if isstruct(ip)
+    ip=replaceValInStruct(ip,nan,newVal);
+elseif isnumeric(ip)
+    ip(isnan(ip))=newVal;
+else
+    error('Input should be struct or numeric')
+end
+op=ip;
