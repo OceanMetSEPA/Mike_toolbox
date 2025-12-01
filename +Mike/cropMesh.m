@@ -67,4 +67,6 @@ op.meshIndices = ntrik;
 op.boundaryIndices=boundaryIndices;
 op.xMeshBoundary=xMeshBoundary;
 op.yMeshBoundary=yMeshBoundary;
+op.originalIndices=find(cells2Keep); % Might be handy to have cells of uncropped mesh that have been retained
 end
+
