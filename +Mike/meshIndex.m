@@ -8,7 +8,7 @@ function [gridIndex] = meshIndex(xp, yp,varargin)
 %    - faces,vertices
 %    - faces,xMesh,yMesh
 %
-% where:    
+% where:
 %       faces: (Mx3 or Mx4) list of triangles or quadrilaterals
 %       xMesh, yMesh: Mesh node coordinates (Px1 arrays)
 %
@@ -28,11 +28,11 @@ switch length(varargin)
         s=varargin{1};
         try
             fn=fieldnames(s);
-            xfield=fn{contains(fn,'xmesh','ig',1)};
+            xfield=fn{startsWith(fn,'xmesh','ig',1)};
             xMesh=s.(xfield);
-            yfield=fn{contains(fn,'ymesh','ig',1)};
+            yfield=fn{startsWith(fn,'ymesh','ig',1)};
             yMesh=s.(yfield);
-            triField=fn{contains(fn,'triMesh','ig',1)|contains(fn,'MeshIndices','ig',1)|contains(fn,'tri')};
+            triField=fn{startsWith(fn,'triMesh','ig',1)|startsWith(fn,'MeshIndices','ig',1)|startsWith(fn,'tri')};
             faces=s.(triField);
             vertices=[xMesh,yMesh];
         catch
@@ -74,14 +74,9 @@ end
 
 %  **Find Containing Triangle**
 try
-gridIndex = tsearchn(vertices, triFaces, [xp, yp]);  % Returns NaN if outside
+    gridIndex = tsearchn(vertices, triFaces, [xp, yp]);  % Returns NaN if outside
 catch err
-%    fprintf('Point %f, %f\n',xp,yp)
-    disp(size(vertices))
-    disp(size(triFaces))
-    fprintf('Orig shape = %s\n',tdisp(origShape))
     disp(err)
-    underline
     gridIndex=nan;
 end
 %  **Convert Triangle Index Back to Quadrilateral Index (if needed)**
