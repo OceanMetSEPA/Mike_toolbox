@@ -54,6 +54,9 @@ switch length(varargin)
         error('Incorrect number of arguments')
 end
 
+% make sure faces is a double (python saves them as int32 which causes error below) 
+faces=double(faces);
+
 origShape = size(xp);
 xp = xp(:);
 yp = yp(:);
