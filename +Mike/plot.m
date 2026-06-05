@@ -25,7 +25,7 @@ options.fontsize=8;
 options.rotation=0;
 options.title='';
 options.alpha=0.3;
-options.bathy=true;
+options.bathy=gray(64);
 options.interpreter='tex';
 options.zMesh=[];
 options.return='figure';
@@ -62,10 +62,9 @@ if ~isempty(options.boundary)
     end
 end
 % Plot bathymetry?
-if options.bathy
+bathyColourMap=options.bathy;
+if isnumeric(bathyColourMap) && size(bathyColourMap,2)==3
     try
-        % Colour map for bathy:
-        bathyColourMap=gray(64); % B&W so it doesn't interfere with coloured concentrations
         % Get RGB values to represent depth of each cell:
         bathyColours=getColourMatrix(meshStruct.zMesh,bathyColourMap);
         % Now plot bathy triangles:
