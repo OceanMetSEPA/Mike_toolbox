@@ -9,13 +9,13 @@ function meshStruct=mesh2MeshStruct(f,varargin)
 % meshFileName
 %
 % Optional inputs:
-% matfileName [] - filename of matfile to load from / save to
-% loadFromMatfile [true] - load from matfile if it exists (faster)
-% save [true] - save to matfile
+% save [''] - save to this filename
 % overwrite [false] - only overwrite existing matfile if this is true
+% cat [false] - Call OS.catCoordinates on input coordinates, calculate area of cells
+% polyshape [false] - generate polyshape of boundary and individual cells
 %
 % OUTPUT:
-% struct containing fields:
+% struct containing fields (depending on input options):
 %     {'xMesh'        }
 %     {'yMesh'        }
 %     {'zMesh'        }
@@ -31,6 +31,13 @@ function meshStruct=mesh2MeshStruct(f,varargin)
 %     {'boundaryPolyshape'}
 %     {'meshPolyshape'};
 %
+
+options=struct;
+options.save=''; % Specify filename to save file
+options.cat=false; % Convert lat/lons to Easting/Northings and calculate cell area - can take a while!
+options.polyshape=false; % Generate polyshape of boundary and individual cells. Not supported in python
+options=checkArguments(options,varargin);
+
 switch class(f)
     case 'char'
         if ~isfile(f)
@@ -61,23 +68,24 @@ zVertices=zMesh(meshIndices);
 volumeStruct.x=mean(xVertices,2);
 volumeStruct.y=mean(yVertices,2);
 
-% Get eastings/northings of grid (so we can calculate area of grid cells)
-%[easting,northing]=OS.catCoordinates(trix,triy); % Pre 20220516 way - inefficient cos we're doing lots of duplicate vertices!
-% !!! mesh might already be in eastings/northings!
-if all(yMesh<90)
-    [easting,northing]=OS.catCoordinates(xMesh,yMesh);
-else
-    easting=xMesh;
-    northing=yMesh;
+if options.cat
+    % Get eastings/northings of grid (so we can calculate area of grid cells)
+    % !!! mesh might already be in eastings/northings!
+    if all(yMesh<90)
+        [easting,northing]=OS.catCoordinates(xMesh,yMesh);
+    else
+        easting=xMesh;
+        northing=yMesh;
+    end
+    % Get size info about mesh triangles:
+    trixEasting=easting(meshIndices);
+    triyNorthing=northing(meshIndices);
+    pp=polygonProperties(trixEasting,triyNorthing);
 end
+
 % Boundary - looks nice in plot :-)
 [~,xMeshBoundary,yMeshBoundary]=meshBoundary(meshIndices,xMesh,yMesh);
 
-% Get size info about mesh triangles:
-trixEasting=easting(meshIndices);
-triyNorthing=northing(meshIndices);
-pp=polygonProperties(trixEasting,triyNorthing);
-%cellArea=pp.area; % Use this rather than volume/dz from volumeStruct as it is constant in time
 
 % Prepare output struct
 meshStruct=struct;
@@ -92,25 +100,38 @@ meshStruct.yVertices=yVertices;
 meshStruct.zVertices=zVertices;
 meshStruct.xMeshBoundary=xMeshBoundary;
 meshStruct.yMeshBoundary=yMeshBoundary;
-meshStruct.easting=easting;
-meshStruct.northing=northing;
 
-meshStruct.cellArea=pp.area;%
-%meshStruct.cellProperties=pp;
-meshStruct.boundaryPolyshape=polyshape(meshStruct.xMeshBoundary,meshStruct.yMeshBoundary,'simplify',0);
+if options.cat
+    meshStruct.easting=easting;
+    meshStruct.northing=northing;
+    meshStruct.cellArea=pp.area;%
+    %meshStruct.cellProperties=pp;
+end
 
-% Also generate polyshape of individiual elements. This takes a while (few
-% minutes) but is useful for checking intersections for generateing tracks
-Nt=length(meshStruct.xVertices);
-nans=nan(Nt,1);
-xt=[meshStruct.xVertices,nans]';
-yt=[meshStruct.yVertices,nans]';
-xt=xt(:);
-yt=yt(:);
-ps=polyshape(xt,yt,'simplify',0);
-meshStruct.meshPolyshape=ps;
+if options.polyshape
+    meshStruct.boundaryPolyshape=polyshape(meshStruct.xMeshBoundary,meshStruct.yMeshBoundary,'simplify',0);
+    % Also generate polyshape of individiual elements. This takes a while (few
+    % minutes) but is useful for checking intersections for generateing tracks
+    Nt=length(meshStruct.xVertices);
+    nans=nan(Nt,1);
+    xt=[meshStruct.xVertices,nans]';
+    yt=[meshStruct.yVertices,nans]';
+    xt=xt(:);
+    yt=yt(:);
+    ps=polyshape(xt,yt,'simplify',0);
+    meshStruct.meshPolyshape=ps;
+end
 
-var2matfile(meshStruct,matfileName)
-
+if ~isempty(options.save)
+    try
+        if isfile(options.save) && ~options.overwrite
+            warning('%s exists! Set overwrite = true to save. Returning...')
+            return
+        end
+        var2matfile(meshStruct,options.save)
+    catch err
+        disp(err)
+        warning('Problem saving file- returning without saving...')
+    end
 end
 
