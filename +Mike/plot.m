@@ -6,6 +6,7 @@ function varargout=plot(meshStruct,varargin)
 
 options=struct;
 options.width=900;
+options.height=[];
 options.close=0;
 options.data2Plot=[];
 %options.maxColVal=[];
@@ -39,10 +40,14 @@ end
 
 % Sort figure size:
 w=options.width;
-dx=max(meshStruct.xMesh)-min(meshStruct.xMesh);
-dy=max(meshStruct.yMesh)-min(meshStruct.yMesh);
-aspectRatio=dy/dx;
-figureHeight=aspectRatio*w;
+if isempty(options.height)
+    dx=max(meshStruct.xMesh)-min(meshStruct.xMesh);
+    dy=max(meshStruct.yMesh)-min(meshStruct.yMesh);
+    aspectRatio=dy/dx;
+    figureHeight=aspectRatio*w;
+else
+    figureHeight=options.height;
+end
 %fprintf('Figure size = %.0f by %.0f (aspect ratio = %f)\n',w,figureHeight,aspectRatio)
 
 % Generate figure:
@@ -249,7 +254,5 @@ end
                 id=0;
             end
         end
-
     end
-
 end
